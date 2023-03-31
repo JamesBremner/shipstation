@@ -1,2 +1,4 @@
-# starter
-Starter template repository
+# shipstation client
+
+API:
+https://www.shipstation.com/docs/api/shipments/get-rates/
