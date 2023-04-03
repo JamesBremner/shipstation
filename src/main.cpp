@@ -5,6 +5,7 @@
 #include <vector>
 #include <algorithm>
 #include <wex.h>
+#include <propertygrid.h>
 #include "cStarterGUI.h"
 #include "shipChooser.h"
 
@@ -39,16 +40,7 @@ private:
     wex::groupbox &gpCarrier;
     wex::button &bnAuthorization;
     wex::button &bnCarriers;
-    wex::label &lbCarrier1;
-    wex::editbox &edCarrier1;
-    wex::label &lbCarrier2;
-    wex::editbox &edCarrier2;
-    wex::label &lbCarrier3;
-    wex::editbox &edCarrier3;
-    wex::label &lbCarrier4;
-    wex::editbox &edCarrier4;
-    wex::label &lbCarrier5;
-    wex::editbox &edCarrier5;
+    wex::propertyGrid &pgCarrier;
 
     wex::panel &plChoice;
     wex::groupbox &gpChoice;
@@ -106,18 +98,10 @@ cGUI::cGUI()
       plCarrier(wex::maker::make<wex::panel>(fm)),
       gpCarrier(wex::maker::make<wex::groupbox>(plCarrier)),
 
-      lbCarrier1(wex::maker::make<wex::label>(plCarrier)),
-      edCarrier1(wex::maker::make<wex::editbox>(plCarrier)),
       bnAuthorization(wex::maker::make<wex::button>(plCarrier)),
       bnCarriers(wex::maker::make<wex::button>(plCarrier)),
-      lbCarrier2(wex::maker::make<wex::label>(plCarrier)),
-      edCarrier2(wex::maker::make<wex::editbox>(plCarrier)),
-      lbCarrier3(wex::maker::make<wex::label>(plCarrier)),
-      edCarrier3(wex::maker::make<wex::editbox>(plCarrier)),
-      lbCarrier4(wex::maker::make<wex::label>(plCarrier)),
-      edCarrier4(wex::maker::make<wex::editbox>(plCarrier)),
-      lbCarrier5(wex::maker::make<wex::label>(plCarrier)),
-      edCarrier5(wex::maker::make<wex::editbox>(plCarrier)),
+      pgCarrier(wex::maker::make<wex::propertyGrid>(plCarrier)),
+
 
       plChoice(wex::maker::make<wex::panel>(fm)),
       gpChoice(wex::maker::make<wex::groupbox>(plChoice)),
@@ -201,9 +185,11 @@ void cGUI::constructCarrierPanel(int x, int y)
      "FedEx Ground®","fedex_ground");
     vCarrier.emplace_back("FedEX", "fedex",
      "FedEx Home Delivery®","fedex_home_delivery");
+    vCarrier.emplace_back("FedEX", "fedex",
+     "FedEx 2Day® A.M","fedex_2day_am");
 
-    plCarrier.move(x, y, 200, 400);
-    gpCarrier.move({10, 10, 190, 390});
+    plCarrier.move(x, y, 200, 500);
+    gpCarrier.move({10, 10, 190, 490});
     gpCarrier.text("Carriers");
 
     y = 40;
@@ -214,20 +200,14 @@ void cGUI::constructCarrierPanel(int x, int y)
     bnCarriers.move(50, y, 70, 30);
     bnCarriers.text("Update");
 
-    int lbw = 80;
-    int edx = lbw + 30;
     y += 50;
-    lbCarrier1.move(15, y, lbw, 30);
-    lbCarrier1.text(vCarrier[0].text());
-    edCarrier1.move(edx, y, 50, 30);
-    edCarrier1.text(std::to_string(vCarrier[0].myFactorWeight));
+    pgCarrier.move({20,y,170,300});
+    pgCarrier.labelWidth(120);
+    pgCarrier.text("Service         Weight");
+    pgCarrier.category(vCarrier[0].myCarrierName);
+    for( auto& c : vCarrier )
+        pgCarrier.string(c.text(), "1");
 
-    y += 50;
-    lbCarrier2.move(15, y, lbw, 30);
-    lbCarrier2.text(vCarrier[1].text());
-    edCarrier2.move(edx, y, 50, 30);
-    edCarrier2.text(std::to_string(vCarrier[1].myFactorWeight));
-    y += 50;
 }
 
 void cGUI::constructChoicePanel(int x, int y)
@@ -278,9 +258,29 @@ void cGUI::choose()
     }
 }
 
+    cCarrier::cCarrier(
+        const std::string &Carriername,
+        const std::string &Carriercode,
+        const std::string &Servicename,
+        const std::string &Servicecode)
+        : myCarrierName(Carriername),
+          myCarrierCode(Carriercode),
+          myServiceName(Servicename ),
+          myServiceCode(Servicecode ),
+          myFactorWeight(1)
+    {
+    }
+
 std::string cCarrier::text() const
 {
-    return myCarrierName + "/" + myServiceName;
+    auto ret = myServiceName;
+    // int p = ret.find( myCarrierName );
+    // if( p == 0 )
+    ret = ret.substr(myCarrierName.length()+1);
+    int p = ret.find("®");
+    if( p != -1 )
+        ret = ret.substr(0,p) + ret.substr(p+2);
+    return ret;
 }
 
 float cCarrier::cost(const cPackage &package)

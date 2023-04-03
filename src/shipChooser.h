@@ -23,14 +23,7 @@ public:
         const std::string &Carriername,
         const std::string &Carriercode,
         const std::string &Servicename,
-        const std::string &Servicecode)
-        : myCarrierName(Carriername),
-          myCarrierCode(Carriercode),
-          myServiceName(Servicename ),
-          myServiceCode(Servicecode ),
-          myFactorWeight(1)
-    {
-    }
+        const std::string &Servicecode);
 
     std::string text() const;
     float cost(const cPackage &package);
