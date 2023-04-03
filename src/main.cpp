@@ -6,69 +6,9 @@
 #include <algorithm>
 #include <wex.h>
 #include <propertygrid.h>
+#include <inputbox.h>
 #include "cStarterGUI.h"
 #include "shipChooser.h"
-
-
-class cGUI : public cStarterGUI
-{
-public:
-    cGUI();
-
-private:
-    wex::label &lbCarriers;
-
-    wex::panel &plPackage;
-    wex::groupbox &gpPackage;
-    wex::button &bnBatch;
-    wex::label &lbWeight;
-    wex::editbox &edWeight;
-    wex::label &lbLength;
-    wex::editbox &edLength;
-    wex::label &lbWidth;
-    wex::editbox &edWidth;
-    wex::label &lbHeight;
-    wex::editbox &edHeight;
-    wex::label &lbSrc;
-    wex::editbox &edSrc;
-    wex::label &lbDst;
-    wex::editbox &edDst;
-    wex::radiobutton &rbCommercial;
-    wex::radiobutton &rbResidential;
-
-    wex::panel &plCarrier;
-    wex::groupbox &gpCarrier;
-    wex::button &bnAuthorization;
-    wex::button &bnCarriers;
-    wex::propertyGrid &pgCarrier;
-
-    wex::panel &plChoice;
-    wex::groupbox &gpChoice;
-    wex::editbox &edCost;
-    wex::editbox &edTime;
-    wex::button &bnChoose;
-
-    wex::panel &plLogic;
-    wex::groupbox &gpLogic;
-    wex::label &lbLogic;
-
-    wex::label &lbChoice;
-
-    std::vector<cCarrier> vCarrier;
-
-    void constructCarrierPanel(int x, int y);
-    void constructPackagePanel(int x, int y);
-    void constructChoicePanel(int x, int y);
-    void constructLogicPanel(int x, int y);
-
-    void choose();
-};
-
-class cShipChooser
-{
-    public:
-    std::string Authorization;
-};
 
 cShipChooser theShipChooser;
 
@@ -101,7 +41,6 @@ cGUI::cGUI()
       bnAuthorization(wex::maker::make<wex::button>(plCarrier)),
       bnCarriers(wex::maker::make<wex::button>(plCarrier)),
       pgCarrier(wex::maker::make<wex::propertyGrid>(plCarrier)),
-
 
       plChoice(wex::maker::make<wex::panel>(fm)),
       gpChoice(wex::maker::make<wex::groupbox>(plChoice)),
@@ -182,11 +121,11 @@ void cGUI::constructCarrierPanel(int x, int y)
 {
     vCarrier.clear();
     vCarrier.emplace_back("FedEX", "fedex",
-     "FedEx Ground®","fedex_ground");
+                          "FedEx Ground®", "fedex_ground");
     vCarrier.emplace_back("FedEX", "fedex",
-     "FedEx Home Delivery®","fedex_home_delivery");
+                          "FedEx Home Delivery®", "fedex_home_delivery");
     vCarrier.emplace_back("FedEX", "fedex",
-     "FedEx 2Day® A.M","fedex_2day_am");
+                          "FedEx 2Day® A.M", "fedex_2day_am");
 
     plCarrier.move(x, y, 200, 500);
     gpCarrier.move({10, 10, 190, 490});
@@ -195,19 +134,36 @@ void cGUI::constructCarrierPanel(int x, int y)
     y = 40;
     bnAuthorization.move(50, y, 100, 30);
     bnAuthorization.text("Authorization");
+    bnAuthorization.events().click(
+        [this]
+        {
+            Authorization();
+        });
 
     y += 40;
     bnCarriers.move(50, y, 70, 30);
     bnCarriers.text("Update");
+    bnCarriers.events().click(
+        [this]
+        {
+            CarrierUpdate();
+        });
 
     y += 50;
-    pgCarrier.move({20,y,170,300});
+    pgCarrier.move({20, y, 170, 300});
     pgCarrier.labelWidth(120);
     pgCarrier.text("Service         Weight");
-    pgCarrier.category(vCarrier[0].myCarrierName);
-    for( auto& c : vCarrier )
+    auto curCarrier = vCarrier[0].myCarrierName;
+    pgCarrier.category(curCarrier);
+    for (auto &c : vCarrier)
+    {
+        if (c.myCarrierName != curCarrier)
+        {
+            curCarrier = c.myCarrierName;
+            pgCarrier.category(curCarrier);
+        }
         pgCarrier.string(c.text(), "1");
-
+    }
 }
 
 void cGUI::constructChoicePanel(int x, int y)
@@ -247,6 +203,24 @@ void cGUI::constructLogicPanel(int x, int y)
                  " - Time x Time Weight");
 }
 
+static std::string exec(const std::string &cmd)
+{
+    std::array<char, 128> buffer;
+    std::string result;
+    // std::string cmd2 = cmd + " 2>&1";
+    std::string cmd2 = cmd;
+    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd2.c_str(), "r"), pclose);
+    if (!pipe)
+    {
+        throw std::runtime_error("popen() failed!");
+    }
+    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr)
+    {
+        result += buffer.data();
+    }
+    return result;
+}
+
 void cGUI::choose()
 {
     cPackage package;
@@ -258,28 +232,54 @@ void cGUI::choose()
     }
 }
 
-    cCarrier::cCarrier(
-        const std::string &Carriername,
-        const std::string &Carriercode,
-        const std::string &Servicename,
-        const std::string &Servicecode)
-        : myCarrierName(Carriername),
-          myCarrierCode(Carriercode),
-          myServiceName(Servicename ),
-          myServiceCode(Servicecode ),
-          myFactorWeight(1)
-    {
+void cGUI::Authorization()
+{
+    wex::inputbox ib;
+    ib.text("ShipStation Authorization");
+    ib.gridWidth(500);
+    ib.labelWidth(200);
+    ib.add("User Name","");
+    ib.add("Password","");
+    ib.showModal();
+    theShipChooser.Authorization =
+        ib.value("User Name") + ":" + ib.value("Password");
+}
+
+void cGUI::CarrierUpdate()
+{
+    std::string cmd = 
+        "curl -v -u " +
+        theShipChooser.Authorization +
+        " ssapi.shipstation.com/carriers";
+
+    auto ret = exec(cmd);
+    if( ret == "401 Unauthorized") {
+        wex::msgbox("Authorization failed");
     }
+}
+
+cCarrier::cCarrier(
+    const std::string &Carriername,
+    const std::string &Carriercode,
+    const std::string &Servicename,
+    const std::string &Servicecode)
+    : myCarrierName(Carriername),
+      myCarrierCode(Carriercode),
+      myServiceName(Servicename),
+      myServiceCode(Servicecode),
+      myFactorWeight(1)
+{
+}
 
 std::string cCarrier::text() const
 {
     auto ret = myServiceName;
     // int p = ret.find( myCarrierName );
     // if( p == 0 )
-    ret = ret.substr(myCarrierName.length()+1);
+    ret = ret.substr(myCarrierName.length() + 1);
     int p = ret.find("®");
-    if( p != -1 )
-        ret = ret.substr(0,p) + ret.substr(p+2);
+    if (p != -1)
+        ret = ret.substr(0, p) + ret.substr(p + 2);
     return ret;
 }
 
@@ -298,11 +298,11 @@ std::string cCarrier::reqRateText()
           "Authorization:";
     ss << theShipChooser.Authorization + "\n";
     ss << "Content-Type: application/json\n"
-        "{\n"
-        "\"carrierCode\":" + myCarrierCode + ",\n";
-        "";
+          "{\n"
+          "\"carrierCode\":" +
+              myCarrierCode + ",\n";
+    "";
     return ss.str();
-
 }
 
 main()
